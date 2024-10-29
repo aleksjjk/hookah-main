@@ -2,12 +2,14 @@ package main
 
 import (
 	"log"
+	"net/http"
+	"os"
 
-	"github.com/joho/godotenv"
 	"github.com/aleksjjk/hookah-bot/internal/config"
 	"github.com/aleksjjk/hookah-bot/internal/handlers"
 	"github.com/aleksjjk/hookah-bot/internal/utils"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
+	"github.com/joho/godotenv"
 	_ "github.com/mattn/go-sqlite3"
 )
 
@@ -25,16 +27,34 @@ func main() {
 	bot := utils.NewBot(cfg.BotToken)
 	bot.Debug = true
 	log.Printf("Authorized on account %s", bot.Self.UserName)
+	webhookURL := os.Getenv("WEBHOOK_URL")
+	// Установка вебхука
+	webhookConfig,_ := tgbotapi.NewWebhook(webhookURL)
+	_, err = bot.Request(webhookConfig)
+	if err != nil {
+		log.Panic(err)
+	}
 
+	// Проверка на наличие ошибок вебхука
+	info, err := bot.GetWebhookInfo()
+	if err != nil {
+		log.Panic(err)
+	}
+	if info.LastErrorDate != 0 {
+		log.Printf("Telegram callback failed: %s", info.LastErrorMessage)
+	}
 	// Инициализация обработчика
 	handler := handlers.NewHandler(bot, cfg.AdminChatID)
 
 	// Настройка обновлений
-	u := tgbotapi.NewUpdate(0)
-	u.Timeout = 60
+	updates := bot.ListenForWebhook("/")
 
-	updates := bot.GetUpdatesChan(u)
-
+	// Запуск HTTP-сервера в отдельной горутине
+	go func() {
+		if err := http.ListenAndServe(":8080", nil); err != nil {
+			log.Fatalf("Ошибка при запуске сервера: %v", err)
+		}
+	}()
 	// Основной цикл обработки обновлений
 	for update := range updates {
 		handler.HandleUpdate(update)
