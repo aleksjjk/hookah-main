@@ -28,22 +28,31 @@ func main() {
 	bot.Debug = true
 	log.Printf("Authorized on account %s", bot.Self.UserName)
 	webhookURL := os.Getenv("WEBHOOK_URL")
-	// Установка вебхука
-	webhookConfig,_ := tgbotapi.NewWebhook(webhookURL)
-	_, err = bot.Request(webhookConfig)
-	if err != nil {
-		log.Panic(err)
+	if webhookURL == "" {
+		log.Fatal("WEBHOOK_URL не установлен")
 	}
 
-	// Проверка на наличие ошибок вебхука
+	// Настройка и установка вебхука
+	webhookConfig, err := tgbotapi.NewWebhook(webhookURL)
+	if err != nil {
+		log.Panicf("Ошибка при создании вебхука: %v", err)
+	}
+
+	_, err = bot.Request(webhookConfig)
+	if err != nil {
+		log.Panicf("Ошибка при установке вебхука: %v", err)
+	}
+
+	// Проверка статуса вебхука
 	info, err := bot.GetWebhookInfo()
 	if err != nil {
-		log.Panic(err)
+		log.Panicf("Ошибка при получении информации о вебхуке: %v", err)
 	}
 	if info.LastErrorDate != 0 {
 		log.Printf("Telegram callback failed: %s", info.LastErrorMessage)
 	}
-	// Инициализация обработчика
+
+	//Инициализация обработчика
 	handler := handlers.NewHandler(bot, cfg.AdminChatID)
 
 	// Настройка обновлений
