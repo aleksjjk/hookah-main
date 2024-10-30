@@ -57,10 +57,13 @@ func main() {
 
 	// Настройка обновлений
 	updates := bot.ListenForWebhook("/")
-
+	port := os.Getenv("PORT")
+    if port == "" {
+        log.Fatal("$PORT must be set")
+    }
 	// Запуск HTTP-сервера в отдельной горутине
 	go func() {
-		if err := http.ListenAndServe(":8080", nil); err != nil {
+		if err := http.ListenAndServe(":"+port, nil); err != nil {
 			log.Fatalf("Ошибка при запуске сервера: %v", err)
 		}
 	}()
